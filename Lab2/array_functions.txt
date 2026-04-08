@@ -1,0 +1,14 @@
+1) array_map()
+This function applies a callback to every element of the array and returns a new array with the modified values. Note that in PHP, the callback function is usually the first argument.
+
+2) array_filter()
+This filters the array using a callback function. If the callback returns true, the current value from the array is returned in the resulting array.
+
+3) array_reduce()
+This reduces the array to a single value using a callback function. It’s perfect for totals or combining data. You can also provide an optional third argument as the initial "seed" value.
+
+4) array_column()
+This is a lifesaver when dealing with multi-dimensional arrays (like a list of users from a database). It allows you to pull out a single column of values from a set of arrays.
+
+5) array_unique()
+This function removes duplicate values from an array. It’s particularly useful when you are merging lists and want to ensure every entry is distinct.
