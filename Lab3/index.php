@@ -1,5 +1,4 @@
 <?php
-// 1. Database Connection Configuration
 $host = "localhost";
 $user = "springstudent";
 $pass = "springstudent";
@@ -12,6 +11,7 @@ if ($conn->connect_error) {
 }
 
 $errors = [];
+$success = false;
 
 if (isset($_POST['save_user'])) {
     $fname  = trim($_POST['first_name']);
@@ -20,7 +20,8 @@ if (isset($_POST['save_user'])) {
     $gender = $_POST['gender'] ?? '';
     $dept   = trim($_POST['department']);
     $skills = isset($_POST['skills']) ? implode(', ', $_POST['skills']) : 'None';
-
+    
+    $image_name = 'default.png'; 
 
     if (empty($fname)) $errors[] = "First name is required.";
     if (empty($lname)) $errors[] = "Last name is required.";
@@ -33,15 +34,42 @@ if (isset($_POST['save_user'])) {
 
     if (empty($gender)) $errors[] = "Please select your gender.";
 
+    if (isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] == 0) {
+        $file = $_FILES['profile_image'];
+        
+        $allowed_types = ['image/jpeg', 'image/png', 'image/jpg'];
+        $max_size = 2 * 1024 * 1024; 
+
+        if (!in_array($file['type'], $allowed_types)) {
+            $errors[] = "Invalid file type. Only JPG, JPEG, and PNG are allowed.";
+        }
+
+        if ($file['size'] > $max_size) {
+            $errors[] = "File size too large. Maximum size is 2MB.";
+        }
+
+        if (empty($errors)) {
+            $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
+            $image_name = time() . '_' . uniqid() . '.' . $ext;
+            $target_path = 'uploads/' . $image_name;
+
+            if (!move_uploaded_file($file['tmp_name'], $target_path)) {
+                $errors[] = "Failed to upload image.";
+                $image_name = 'default.png'; 
+            }
+        }
+    }
+
 
     if (empty($errors)) {
-        $stmt = $conn->prepare("INSERT INTO users (first_name, last_name, email, gender, department, skills) VALUES ('$fname', '$lname', '$email', '$gender', '$dept', '$skills')");
+        $stmt = $conn->prepare("INSERT INTO users (first_name, last_name, email, gender, department, skills, profile_image) VALUES ('$fname', '$lname', '$email', '$gender', '$dept', '$skills', '$image_name')");
+        
 
         if ($stmt->execute()) {
             header("Location: view_users.php?status=success");
             exit();
         } else {
-            $errors[] = "Execution error: " . $stmt->error;
+            $errors[] = "Database error: " . $stmt->error;
         }
         $stmt->close();
     }
@@ -53,7 +81,7 @@ if (isset($_POST['save_user'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Add User Form</title>
+    <title>Add User Form with Image</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { background-color: #f8f9fa; }
@@ -69,10 +97,6 @@ if (isset($_POST['save_user'])) {
     <div class="form-container">
         <h2 class="mb-4">User Registration</h2>
 
-        <?php if (isset($_GET['status']) && $_GET['status'] == 'success'): ?>
-            <div class="alert alert-success">User added successfully to the database!</div>
-        <?php endif; ?>
-
         <?php if (!empty($errors)): ?>
             <div class="alert alert-danger">
                 <ul class="mb-0">
@@ -83,7 +107,7 @@ if (isset($_POST['save_user'])) {
             </div>
         <?php endif; ?>
 
-        <form action="index.php" method="POST">
+        <form action="index.php" method="POST" enctype="multipart/form-data">
             <div class="row mb-3">
                 <div class="col-md-6">
                     <label class="form-label">First Name</label>
@@ -104,7 +128,7 @@ if (isset($_POST['save_user'])) {
                     <label class="form-label">Gender</label>
                     <div class="mt-2">
                         <div class="form-check form-check-inline">
-                            <input class="form-check-input" type="radio" name="gender" value="male" <?= (isset($gender) && $gender == 'male') ? 'checked' : '' ?>>
+                            <input class="form-check-input" type="radio" name="gender" value="male" <?= (isset($gender) && $gender == 'male') ? 'checked' : '' ?> required>
                             <label class="form-check-label">Male</label>
                         </div>
                         <div class="form-check form-check-inline">
@@ -116,9 +140,14 @@ if (isset($_POST['save_user'])) {
             </div>
 
             <div class="row mb-3">
-                <div class="col-md-12">
+                <div class="col-md-6">
                     <label class="form-label">Email (Username)</label>
-                    <input type="email" name="email" class="form-control bg-light-blue" placeholder="user@gmail.com" value="<?= htmlspecialchars($email ?? '') ?>">
+                    <input type="email" name="email" class="form-control bg-light-blue" placeholder="user@gmail.com" value="<?= htmlspecialchars($email ?? '') ?>" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Profile Image</label>
+                    <input type="file" name="profile_image" class="form-control">
+                    <small class="text-muted">Accepted: JPG, PNG. Max: 2MB.</small>
                 </div>
             </div>
 
@@ -128,10 +157,11 @@ if (isset($_POST['save_user'])) {
                     <div class="row">
                         <?php 
                         $skill_options = ['HTML', 'CSS', 'JavaScript', 'PHP', 'MySQL', 'Python'];
+                        $selected_skills = isset($_POST['skills']) ? $_POST['skills'] : [];
                         foreach ($skill_options as $skill): ?>
                         <div class="col-4 col-md-2">
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="skills[]" value="<?= $skill ?>">
+                                <input class="form-check-input" type="checkbox" name="skills[]" value="<?= $skill ?>" <?= in_array($skill, $selected_skills) ? 'checked' : '' ?>>
                                 <label class="form-check-label"><?= $skill ?></label>
                             </div>
                         </div>
